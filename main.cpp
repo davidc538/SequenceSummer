@@ -203,13 +203,22 @@ void TimeAdd(unsigned long long max) {
 	std::cout << "calculated " << sum << " in " << timer.ElapsedNanoseconds() << " ns." << std::endl;
 }
 
-int main(int argc, char** argv) {
+void TestIntervalGenerator(unsigned long long max) {
+	// IntervalGenerator test
+	IntervalGenerator<unsigned long long, 32> gen;
+	std::vector<Interval<unsigned long long>> intervals = gen.GetIntervals(1, max - 1);
+	for (const Interval<unsigned long long>& interval : intervals) {
+		std::cout << interval.Start << ", " << interval.PowerOfTwo << std::endl;
+	}
+}
+
+void BigTest() {
 	BlockTimer timer;
 	SequenceSummer<unsigned long long, 32> summer;
 	unsigned long long max = 1 << 20;
 	TimeAdd(max);
 	timer.Start();
-   	unsigned long long current = 1;
+	unsigned long long current = 1;
 	for (unsigned long long i = 0; i < max; i++) {
 		summer.Set(i, current);
 		current += 2;
@@ -221,19 +230,31 @@ int main(int argc, char** argv) {
 	timer.Pause();
 	std::cout << std::endl << "Sum: " << total << " computed in: " << timer.ElapsedNanoseconds() << " ns.";
 	std::cout << std::endl << "Sum: " << summer.SumRange(4, 6);
-	std::cout << std::endl << "Sum: " << summer.SumRange(4, max -3);
+	std::cout << std::endl << "Sum: " << summer.SumRange(4, max - 3);
 	std::cout << std::endl << "Sum: " << summer.SumRange(4, 4);
+	std::cout << std::endl << "ree";
 	std::cout << std::endl << "Sum: " << summer.SumRange(0, max);
-	summer.Set(0, 0);
+	std::cout << std::endl << "4: " << summer.Get(4);
 	std::cout << std::endl << "Sum: " << summer.SumRange(0, max);
 	std::cout << std::endl << "Sum: " << summer.SumRange(1, max - 1);
 	std::cout << std::endl << "sizeof(std::size_t) = " << sizeof(std::size_t);
-	// IntervalGenerator test
-	IntervalGenerator<unsigned long long, 32> gen;
-	std::vector<Interval<unsigned long long>> intervals = gen.GetIntervals(1, max - 1);
-	for (const Interval<unsigned long long>& interval : intervals) {
-		std::cout << interval.Start << ", " << interval.PowerOfTwo << std::endl;
+	std::cout << std::endl;
+	summer.Set(0, 0);
+	for (unsigned long long i = 0; i < 10; i++) {
+		std::cout << summer.Get(i) << ",";
 	}
 	std::cout << std::endl;
 	//std::cin.get();
+}
+
+int main(int argc, char** argv) {
+	BigTest();
+	SequenceSummer<unsigned long long, 8> summer;
+	for (unsigned long long i = 0; i < 10; i++) {
+		summer.Set(i, i);
+	}
+	for (unsigned long long i = 0; i < 10; i++) {
+		unsigned long long temp = summer.Get(i);
+		std::cout << temp << std::endl;
+	}
 }
