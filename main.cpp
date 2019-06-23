@@ -2,191 +2,13 @@
 #include <unordered_map>
 #include <map>
 #include <iostream>
-#include <chrono>
+#include <random>
+#include <tuple>
+#include "Timer.h"
+#include "IntervalGenerator.h"
+#include "SequenceSummer.h"
 
-class BlockTimer {
-private:
-	std::chrono::time_point<std::chrono::system_clock> start, end;
-public:
-	void Start() {
-		start = std::chrono::system_clock::now();
-	}
-	void Pause() {
-		end = std::chrono::system_clock::now();
-	}
-	unsigned long long ElapsedNanoseconds() const {
-		std::chrono::duration<double> elapsed_s = end - start;
-		auto time = std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed_s);
-		return time.count();
-	}
-	unsigned long long ElapsedMilliseconds() const {
-		std::chrono::duration<double> elapsed_s = end - start;
-		auto time = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_s);
-		return time.count();
-	}
-};
-
-unsigned long long PowerOf2(int power) {
-	return (1 << power);
-}
-
-template<typename T>
-class Interval {
-public:
-	int PowerOfTwo;
-	T Start;
-	T Length() const {
-		T ret = PowerOf2(PowerOfTwo);
-		return ret;
-	}
-	T End() const {
-		T length = Length();
-		T ret = Start + length - 1;
-		return ret;
-	}
-	bool operator==(const Interval<T>& other) const {
-		bool eql1 = (Start == other.Start);
-		bool eql2 = (PowerOfTwo == other.PowerOfTwo);
-		return (eql1 && eql2);
-	}
-	struct Hasher {
-		std::size_t operator()(const Interval<T>& interval) const {
-			std::size_t ret;
-			ret = interval.Start | (1 << (interval.PowerOfTwo - 1));
-			return ret;
-		}
-	};
-	struct Comparator {
-		bool operator()(const Interval<T>& lhs, const Interval<T>& rhs) const {
-			if (lhs.Start < rhs.Start) {
-				return true;
-			} else if (lhs.Start > rhs.Start) {
-				return false;
-			} else if (lhs.PowerOfTwo < rhs.PowerOfTwo) {
-				return true;
-			} else if (lhs.PowerOfTwo > rhs.PowerOfTwo) {
-				return false;
-			} else {
-				return false;
-			}
-		}
-	};
-};
-
-template<typename T, int Power>
-class IntervalGenerator {
-public:
-	static T GreatestMultipleOfKLessThanOrEqualToN(T N, T K) {
-		T ret = N - (N % K);
-		return ret;
-	}
-	std::vector<Interval<T>> GetIntervals(T N) const {
-		std::vector<Interval<T>> ret;
-		for (int i = 0; i < Power; i++) {
-			Interval<T> ToAdd;
-			ToAdd.PowerOfTwo = i;
-			ToAdd.Start = GreatestMultipleOfKLessThanOrEqualToN(N, PowerOf2(i));
-			ret.push_back(ToAdd);
-		}
-		return ret;
-	}
-private:
-	Interval<T> GetBiggestInterval(T start, T end) const {
-		Interval<T> ret;
-		ret.PowerOfTwo = ret.Start = 0;
-		for (int i = 0; i < Power; i++) {
-			T multiple = PowerOf2(i);
-			T interval_start = GreatestMultipleOfKLessThanOrEqualToN(start, multiple);
-			bool overflows_left = (interval_start < start);
-			bool overflows_right = (interval_start + multiple > end);
-			bool reaches_left = (interval_start <= start);
-			bool reaches_right = (interval_start + multiple >= end);
-			bool overflows_both = (overflows_left | overflows_right);
-			bool reaches_both = (reaches_left & reaches_right);
-			if (overflows_both) {
-				ret.PowerOfTwo = i - 1;
-			} else if (reaches_both) {
-				ret.PowerOfTwo = i;
-			}
-			if (overflows_both | reaches_both) {
-				ret.Start = GreatestMultipleOfKLessThanOrEqualToN(start, PowerOf2(ret.PowerOfTwo));
-				return ret;
-			}
-		}
-		return ret;
-	}
-public:
-	std::vector<Interval<T>> GetIntervals(T start, T end) const {
-		std::vector<Interval<T>> ret;
-		T iter = start;
-		do {
-			Interval<T> interval = GetBiggestInterval(iter, end);
-			iter = interval.End() + 1;
-			ret.push_back(interval);
-		} while (iter < end);
-		return ret;
-	}
-};
-
-template<typename T, int Power>
-class SequenceSummer {
-private:
-	IntervalGenerator<T, Power> gen;
-	std::unordered_map<Interval<T>, T, typename Interval<T>::Hasher> storage;
-	//std::map<Interval<T>, T, typename Interval<T>::Comparator> storage;
-	bool IsIntervalSet(const Interval<T>& interval) const {
-		bool ret = (storage.find(interval) != storage.end());
-		return ret;
-	}
-	void EnsureIntervalIsSet(const Interval<T>& interval) {
-		if (!IsIntervalSet(interval)) {
-			storage[interval] = 0;
-		}
-	}
-	void AddToInterval(const Interval<T>& interval, T value) {
-		EnsureIntervalIsSet(interval);
-		storage[interval] += value;
-	}
-	T IntervalSum(const Interval<T>& interval) const {
-		auto iter = storage.find(interval);
-		if (iter == storage.end()) {
-			return 0;
-		}
-		return iter->second;
-	}
-public:
-	void Set(unsigned long long index, T value) {
-		std::vector<Interval<T>> intervals = gen.GetIntervals(index);
-		T current = IntervalSum(intervals[0]);
-		T difference = value - current;
-		for (const Interval<T>& interval : intervals) {
-			AddToInterval(interval, difference);
-		}
-	}
-	T Get(unsigned long long index) const {
-		Interval<T> interval;
-		interval.Start = index;
-		interval.PowerOfTwo = 0;
-		T ret = IntervalSum(interval);
-		return ret;
-	}
-	T SumRange(unsigned long long start, unsigned long long end) const {
-		if (start == end) {
-			return Get(start);
-		}
-		T ret = 0;
-		std::vector<Interval<T>> intervals = gen.GetIntervals(start, end);
-		for (const Interval<T>& interval : intervals) {
-			if (IsIntervalSet(interval)) {
-				T interval_sum = IntervalSum(interval);
-				ret += interval_sum;
-			}
-		}
-		return ret;
-	}
-};
-
-void TimeAdd(unsigned long long max) {
+void TimeAddTest(unsigned long long max) {
 	std::vector<unsigned long long> nums;
 	unsigned long long current = 1;
 	for (unsigned long long i = 0; i < max; i++) {
@@ -200,33 +22,101 @@ void TimeAdd(unsigned long long max) {
 		sum += i;
 	}
 	timer.Pause();
+	if (sum == (max * max)) {
+		std::cout << "Sum is correct!" << std::endl;
+	} else {
+		std::cout << "Sum is incorrect!" << std::endl;
+	}
 	std::cout << "calculated " << sum << " in " << timer.ElapsedNanoseconds() << " ns." << std::endl;
 }
 
-void TestIntervalGenerator(unsigned long long max) {
-	// IntervalGenerator test
-	IntervalGenerator<unsigned long long, 32> gen;
-	std::vector<Interval<unsigned long long>> intervals = gen.GetIntervals(1, max - 1);
-	for (const Interval<unsigned long long>& interval : intervals) {
-		std::cout << interval.Start << ", " << interval.PowerOfTwo << std::endl;
+void Sort(unsigned long long& A, unsigned long long& B) {
+	if (A > B) {
+		unsigned long long temp;
+		temp = A;
+		A = B;
+		B = temp;
+	}
+}
+
+unsigned long long NthOddNumber(unsigned long long N) {
+	return 1 + (2 * N);
+}
+
+template<typename T>
+void RandomizedTest(unsigned long long max, int repetitions, T& summer) {
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_int_distribution<unsigned long long> dis(0, max);
+	unsigned long long lower, upper, lowerOdd, upperOdd, storedLower, storedUpper, lowerSquared, upperSquared;
+	unsigned long long diff, sum, correct = 0, correctValues = 0;
+	std::vector<std::tuple<unsigned long long, unsigned long long>> incorrectValues;
+	for (int i = 0; i < repetitions; i++) {
+		lower = dis(gen);
+		upper = dis(gen);
+		Sort(lower, upper);
+		lowerOdd = NthOddNumber(lower);
+		upperOdd = NthOddNumber(upper);
+		storedLower = summer.Get(lower);
+		storedUpper = summer.Get(upper);
+		if (storedLower == lowerOdd) {
+			correctValues++;
+		} else {
+			incorrectValues.push_back(std::make_tuple(storedLower, lowerOdd));
+		}
+		if (storedUpper == upperOdd) {
+			correctValues++;
+		} else {
+			incorrectValues.push_back(std::make_tuple(storedUpper, upperOdd));
+		}
+		lowerSquared = lower * lower;
+		upperSquared = upper * upper;
+		diff = (upperSquared - lowerSquared);
+		sum = summer.SumRange(lower, upper);
+		if (sum == diff) {
+			correct++;
+		}
+	}
+	std::cout << "Randomized testing results: " << (correct / repetitions) * 100 << "%, correct values: ";
+	std::cout << correctValues << ", repetitions*2: " << (repetitions * 2) << std::endl;
+	std::cout << "Incorrect values: " << std::endl;
+	for (std::tuple<unsigned long long, unsigned long long>& v : incorrectValues) {
+		std::cout << "Expected: " << std::get<0>(v) << " Stored: " << std::get<1>(v) << std::endl;
+	}
+}
+
+void StorageTest(unsigned long long repetitions) {
+	std::cout << "Storage Test:" << std::endl;
+	SequenceSummer<unsigned long long, 32> summer;
+	for (unsigned long long i = 0; i < repetitions; i++) {
+		summer.Set(i, i);
+	}
+	unsigned long long stored;
+	for (unsigned long long i = 0; i < repetitions; i++) {
+		stored = summer.Get(i);
+		if (stored != i) {
+			std::cout << "Incorrect value for " << i << " : " << stored << std::endl;
+		}
 	}
 }
 
 void BigTest() {
 	BlockTimer timer;
 	SequenceSummer<unsigned long long, 32> summer;
-	unsigned long long max = 1 << 20;
-	TimeAdd(max);
+	unsigned long long max = 1 << 13;
+	TimeAddTest(max);
+	StorageTest(100);
 	timer.Start();
 	unsigned long long current = 1;
 	for (unsigned long long i = 0; i < max; i++) {
 		summer.Set(i, current);
 		current += 2;
 	}
+	//	RandomizedTest<SequenceSummer<unsigned long long, 32>>(max, 1000, summer);
 	timer.Pause();
 	std::cout << "done setting " << max << " numbers in " << timer.ElapsedMilliseconds() << " ms." << std::endl;
 	timer.Start();
-	unsigned long long total = summer.SumRange(0, max - 1);
+	unsigned long long total = summer.SumRange(1, max - 1);
 	timer.Pause();
 	std::cout << std::endl << "Sum: " << total << " computed in: " << timer.ElapsedNanoseconds() << " ns.";
 	std::cout << std::endl << "Sum: " << summer.SumRange(4, 6);
@@ -248,13 +138,16 @@ void BigTest() {
 }
 
 int main(int argc, char** argv) {
-	BigTest();
+	//BigTest();
 	SequenceSummer<unsigned long long, 8> summer;
 	for (unsigned long long i = 0; i < 10; i++) {
 		summer.Set(i, i);
 	}
+	std::cout << std::endl << "Items set" << std::endl;
 	for (unsigned long long i = 0; i < 10; i++) {
 		unsigned long long temp = summer.Get(i);
-		std::cout << temp << std::endl;
+		std::cout << temp << ",";
 	}
+	std::cout << std::endl;
+	//std::cin.get();
 }
