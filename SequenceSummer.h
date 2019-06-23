@@ -26,11 +26,14 @@ private:
 		storage[interval] = current;
 	}
 	T IntervalSum(const Interval<T>& interval) const {
+		//T ret = storage[interval];
+		//return ret;
 		IteratorType iter = storage.find(interval);
 		if (iter == storage.end()) {
 			return 0;
 		}
 		return iter->second;
+		//*/
 	}
 public:
 	void Set(unsigned long long index, T value) {

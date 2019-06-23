@@ -27,7 +27,7 @@ public:
 	struct Hasher {
 		std::size_t operator()(const Interval<T>& interval) const {
 			std::size_t ret;
-			ret = interval.Start | (1 << (interval.PowerOfTwo - 1));
+			ret = interval.Start | (1 << interval.PowerOfTwo);
 			return ret;
 		}
 	};

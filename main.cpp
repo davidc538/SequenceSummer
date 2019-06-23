@@ -137,17 +137,42 @@ void BigTest() {
 	//std::cin.get();
 }
 
+void TableTest(unsigned long long max) {
+	IntervalGenerator<unsigned long long, 32> gen;
+	for (unsigned long long i = 0; i < max; i++) {
+		std::unordered_map<Interval<unsigned long long>, unsigned long long, typename Interval<unsigned long long>::Hasher> storage;
+		//typedef std::unordered_map<Interval<unsigned long long>, unsigned long long, typename Interval<unsigned long long>::Hasher>::const_iterator IteratorType;
+		Interval<unsigned long long> j, k;
+		j = gen.GetLowestInterval(i);
+		k = gen.GetIntervals(i)[0];
+		if (!(j == k)) {
+			std::cout << "Unequal intervals found!" << std::endl;
+		}
+		if (j.Start != k.Start) {
+			std::cout << "Starts not equal!" << std::endl;
+		}
+		if (j.PowerOfTwo != k.PowerOfTwo) {
+			std::cout << "Powers not equal!" << std::endl;
+		}
+		storage[j] = 3;
+		unsigned long long u = storage[k];
+		if (u != 3) {
+			std::cout << "storage failed " << u << std::endl;
+		}
+		//IteratorType iterator = storage.find(k);
+		//if (iterator != storage.end()) {
+			
+		//}
+	}
+	std::cout << std::endl << "Table test complete" << std::endl;
+	std::unordered_map<Interval<unsigned long long>, unsigned long long, typename Interval<unsigned long long>::Hasher> storage;
+	unsigned long long g = storage[gen.GetLowestInterval(1)];
+	std::cout << "G:" << g << std::endl;
+}
+
 int main(int argc, char** argv) {
-	//BigTest();
-	SequenceSummer<unsigned long long, 8> summer;
-	for (unsigned long long i = 0; i < 10; i++) {
-		summer.Set(i, i);
-	}
-	std::cout << std::endl << "Items set" << std::endl;
-	for (unsigned long long i = 0; i < 10; i++) {
-		unsigned long long temp = summer.Get(i);
-		std::cout << temp << ",";
-	}
+	BigTest();
+	//TableTest(12);
 	std::cout << std::endl;
 	//std::cin.get();
 }
