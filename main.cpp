@@ -43,40 +43,51 @@ unsigned long long NthOddNumber(unsigned long long N) {
 }
 
 template<typename T>
-void RandomizedTest(unsigned long long max, int repetitions, T& summer) {
+bool DiffOfSquaresTest(unsigned long long lower,
+					   unsigned long long upper, T& summer) {
+	unsigned long long lowerOdd = NthOddNumber(lower);
+	unsigned long long upperOdd = NthOddNumber(upper);
+	unsigned long long storedLower = summer.Get(lower);
+	unsigned long long storedUpper = summer.Get(upper);
+   	unsigned long long lowerSquared = lower * lower;
+   	unsigned long long upperSquared = upper * upper;
+   	unsigned long long diff = (upperSquared - lowerSquared);
+   	unsigned long long sum = summer.SumRange(lower, upper);
+	bool lowerCorrect = (storedLower == lowerOdd);
+   	bool upperCorrect = (storedUpper == upperOdd);
+   	bool answerCorrect = (sum == diff);
+	bool ret = (lowerCorrect & upperCorrect & answerCorrect);
+	if (!ret) {
+		using namespace std;
+		cout << "Failed Diff Of Squares Test:" << endl;
+		cout << "lowerOdd     " << lowerOdd << endl;
+		cout << "storedLower: " << storedLower << endl;
+		cout << "upperOdd:    " << upperOdd << endl;
+		cout << "storedUpper: " << storedUpper << endl;
+		cout << "lowerSquared:" << lowerSquared << endl;
+		cout << "upperSquared:" << upperSquared << endl;
+		cout << "diff:        " << diff << endl;
+		cout << "sum:         " << sum << endl;
+	}
+	return ret;
+}
+
+template<typename T>
+void MainTest(unsigned long long max, int repetitions, T& summer) {
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::uniform_int_distribution<unsigned long long> dis(0, max);
-	unsigned long long lower, upper, lowerOdd, upperOdd, storedLower, storedUpper, lowerSquared, upperSquared;
-	unsigned long long diff, sum, correct = 0, correctValues = 0;
+	unsigned long long lower, upper;
+	bool allTestsPassed = true;
+	for (unsigned long long i = 1; i < max; i++) {
+		allTestsPassed = allTestsPassed & DiffOfSquaresTest<T>(0, i, summer);
+		allTestsPassed = allTestsPassed & DiffOfSquaresTest<T>(i, max, summer);
+	}
 	for (int i = 0; i < repetitions; i++) {
 		lower = dis(gen);
 		upper = dis(gen);
 		Sort(lower, upper);
-		lowerOdd = NthOddNumber(lower);
-		upperOdd = NthOddNumber(upper);
-		storedLower = summer.Get(lower);
-		storedUpper = summer.Get(upper);
-		if (storedLower == lowerOdd) {
-			correctValues++;
-		} else {
-			std::cout << "# " << lower << " : " << storedLower << "|" << lowerOdd << std::endl;
-		}
-		if (storedUpper == upperOdd) {
-			correctValues++;
-		} else {
-			std::cout << "# " << upper << " : " << storedUpper << "|" << upperOdd << std::endl;
-		}
-		lowerSquared = lower * lower;
-		upperSquared = upper * upper;
-		diff = (upperSquared - lowerSquared);
-		sum = summer.SumRange(lower, upper);
-		if (sum == diff) {
-			correct++;
-		}
 	}
-	std::cout << "Randomized testing results: " << (correct / repetitions) * 100 << "%, correct values: ";
-	std::cout << correctValues << ", repetitions*2: " << (repetitions * 2) << std::endl;
 }
 
 template<typename T>
@@ -87,7 +98,7 @@ void FillSummerWithFirstNOddNumbers(T& summer, unsigned long long max) {
 }
 
 int main(int argc, char** argv) {
-	unsigned long long max = 1 << 24;
+	unsigned long long max = 1 << 25;
 	typedef SequenceSummer<unsigned long long, 32> Summer;
 	Summer summer;
 	Timer timer;
@@ -96,7 +107,7 @@ int main(int argc, char** argv) {
 	timer.Pause();
 	std::cout << "Set " << max << " numbers in " << timer.ElapsedMilliseconds() << " ms." << std::endl;
 	timer.Start();
-	RandomizedTest<Summer>(max, 1000, summer);
+	MainTest<Summer>(max, 1000, summer);
 	timer.Pause();
 	std::cout << "Time: " << timer.ElapsedNanoseconds() << " ns." << std::endl;
 	TimeAddTest(max);
