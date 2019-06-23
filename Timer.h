@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
 
-class BlockTimer {
+class Timer {
 private:
 	std::chrono::time_point<std::chrono::system_clock> start, end;
 public:
